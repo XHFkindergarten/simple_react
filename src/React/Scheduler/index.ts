@@ -16,11 +16,14 @@ let currentPriorityLevel = PriorityLevel.NormalPriority
 // @question
 let isHostTimeoutScheduled = false
 
+// 标记是否有任务当前已经被标记为将要执行
+// 如果有的话，新的任务就只能在链表队列中等待
 let isHostCallbackScheduled = false
 
 // 任务是以双向环装链表存储的
+// 第一个待执行任务
 let firstTask: Task | null = null
-
+// 第一个延迟任务
 let firstDelayedTask: Task | null = null
 
 // 是否正在执行任务
@@ -79,9 +82,13 @@ function scheduler_flushTaskAtPriority_Idle (callback, didTimeout) {
 let currentTask: Task | null = null
 
 
-// 用小根堆数据结构存储的队列
+/**
+ * 用小根堆数据结构存储的队列
+ */
+
+// 待执行队列
 let taskQueue: Heap = []
-let timerQueue: Heap = []
+// let timerQueue: Heap = []
 
 
 // 在(React)优先级情况下运行
@@ -119,9 +126,37 @@ function timeoutForPriority (priorityLevel: PriorityLevel) {
   }
 }
 
-// 取消节点回调
-function cancelCallback (node: any) {
+// 取消一个回调任务
+function cancelCallback (task: Task) {
+  let next = task.next
+  if (next === null) {
+    // 说明已经被取消了，因为任务是以双向循环链表的形式存在的
+    return
+  }
 
+  if (task === next) {
+    // 唯一的任务，直接赋值即可
+    if (task === firstTask) {
+      firstTask = null
+    } else if (task === firstDelayedTask) {
+      firstDelayedTask = null
+    }
+  } else {
+    // 有其他的任务
+    if (task === firstTask) {
+      // 链表头指针后移
+      firstTask = next
+    } else if (task === firstDelayedTask) {
+      firstDelayedTask = next
+    }
+    // 和前后断开链接
+    const previous = task.previous as Task
+    previous.next = next
+    next.previous = previous
+  }
+
+  // 这个节点无论如何前后箭头置空
+  task.next = task.previous = null
 }
 
 // 当前是否应该阻塞 react 的工作
@@ -140,11 +175,12 @@ function shouldYield (): boolean {
       (firstTask as any).startTime <= currentTime &&
       (firstTask as any).expirationTime < currentTask.expirationTime
     )
+    // 当前处于时间片的阻塞区间
     || shouldYieldToHost()
   )
 }
 
-// 将一些队列中将要过期的任务处理掉
+// 将一些被 delay 但是超时的任务插入到待执行队列中去
 function advanceTimers (currentTime) {
   // 检查过期任务并将它们加入到任务队列中去
   // 条件: 任务开始时间要小于当前的时间
@@ -172,15 +208,26 @@ function advanceTimers (currentTime) {
   }
 }
 
+/**
+ * important
+ * 计划一个任务
+ * @param priorityLevel Scheduler 优先级
+ * @param callback 任务函数
+ * @param options? { delay: number, timeout: number }
+ */
 function scheduleCallback (
   priorityLevel: PriorityLevel,
   callback: Function,
   options: any
 ): void {
+  // 当前时间
   const currentTime = getCurrentTime()
 
   let startTime
   let timeout
+
+  // 开始时间 startTime = currentTime + (delay || 0)
+  // 过期时间 expirationTime = currentTime + (timeout || 根据优先级计算timeout)
   if (isObject(options) && !isNull(options)) {
     let delay = options.delay
     // 考虑配置项中的 delay 计算回调开始时间
@@ -211,7 +258,7 @@ function scheduleCallback (
     previous: null
   }
   if (startTime > currentTime) {
-    // 这是一个被 delay 的任务，插入到环装链表中
+    // 这个任务的优先级不够高，可以延缓执行，插入到 delay 队列中
     insertDelayedTask(newTask, startTime)
     if (firstTask === null && firstDelayedTask === newTask) {
       if (isHostTimeoutScheduled) {
@@ -221,15 +268,17 @@ function scheduleCallback (
         isHostTimeoutScheduled = true
       }
 
-      // schedule 一个 timeout
+      // schedule 一个定时任务, 到达 startTime 的时候再将这个任务取出来执行
       requestHostTimeout(handleTimeout, startTime - currentTime)
     }
   } else {
+    // 任务的优先级高，不管不管现在就执行
     insertScheduledTask(newTask, expirationTime)
 
-    // 计划一个时间片回调
-    // 如果正在执行任务，就等到下个时间片
-    if (!isHostCallbackScheduled && !isPerformingWork) {
+    // 如果有已经计划的任务还没有执行，或者正处于执行过程中，就做到插入链表为止
+    // 否则就通过 requestHostCallback
+    // 在下一个时间片的空闲时间中去执行 flushWork 来处理这行任务
+    if (!isHostCallbackScheduled && !isPerformingWork) { 
       // 标记为已计划
       isHostCallbackScheduled = true
       requestHostCallback(flushWork)
@@ -237,12 +286,13 @@ function scheduleCallback (
   }
 }
 
-// timeout 任务回调
+// 处理延迟计时器，将被延迟的任务取出来执行
 function handleTimeout (currentTime) {
   isHostTimeoutScheduled = false
   advanceTimers(currentTime)
 
   if (!isHostCallbackScheduled) {
+    // 没有任务被
     if (firstTask !== null) {
       isHostCallbackScheduled = true
       requestHostCallback(flushWork)
@@ -255,21 +305,34 @@ function handleTimeout (currentTime) {
   }
 }
 
+/**
+ * 清理【待执行队列】taskQueue 中所有的 task，全部执行掉
+ * @param hasTimeRemaining 是否还有时间剩余
+ * @param currentTime      当前时刻
+ */
 function flushWork (hasTimeRemaining, initialTime) {
+  // 进入执行阶段，将阻塞标记重置为 false
   isHostCallbackScheduled = false
+  // 正常的流程就应该是 timeout 计时结束到达首个任务的 startTime
+  // 由回调函数触发执行 requestHostCallback(flushWork)
+  // 所以这里重置 HostTimeout
   if (isHostTimeoutScheduled) {
     isHostTimeoutScheduled = false
     cancelHostTimeout()
   }
 
+  // 当前时间
   let currentTime = initialTime
+
+  // 将【延迟任务队列】中要过期的任务有序插入到待执行队列中去
   advanceTimers(currentTime)
 
   isPerformingWork = true
 
   try {
     if (!hasTimeRemaining) {
-      // 执行所有过期的 callback 不需要 yield
+      // 即使没有时间了，但是这些任务都过期了没办法
+      // 依旧执行所有待执行的任务
       while(
         firstTask !== null &&
         firstTask.expirationTime <= currentTime
@@ -279,6 +342,7 @@ function flushWork (hasTimeRemaining, initialTime) {
         advanceTimers(currentTime)
       }
     } else {
+      // 还有时间，不用着急
       // 保持刷新 callback 直到我们花光这一帧中剩余的时间
       if (firstTask !== null) {
         do {
@@ -291,16 +355,18 @@ function flushWork (hasTimeRemaining, initialTime) {
         )
       }
     }
-    // 不管是否还有额外的工作，都返回
     if (firstTask !== null) {
+      // 还有任务没有完成，需要返回 true
       return true
     } else {
+      // 还有被延迟的任务，设定 HostTimeout
       if (firstDelayedTask !== null) {
         requestHostTimeout(
           handleTimeout,
           firstDelayedTask.startTime - currentTime
         )
       }
+      // 待执行队列中的任务已经全部被执行完毕了，可以返回 false 了
       return false
     }
   } finally {
@@ -482,11 +548,6 @@ function insertScheduledTask (
   }
 }
 
-// const ImmediatePriority = 1;
-// const UserBlockingPriority = 2;
-// const NormalPriority = 3;
-// const LowPriority = 4;
-// const IdlePriority = 5;
 export {
   getCurrentTime,
   Schedule_runWithPriority,

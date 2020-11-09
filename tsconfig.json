@@ -1,0 +1,40 @@
+{
+  "compilerOptions": {
+    "target": "es6",
+    "module": "es6",        
+    "removeComments": false,
+    "preserveConstEnums": true,
+    "moduleResolution": "node",
+    "experimentalDecorators": true,
+    "noImplicitAny": false,
+    "allowSyntheticDefaultImports": true,
+    // "outDir": "lib",
+    "noUnusedLocals": true,
+    "strictNullChecks": true,
+    "sourceMap": true,
+    "declaration": true,
+    "baseUrl": ".",
+    "paths": {
+      "src/*": [ "src/*" ]
+      // "nervjs": ["packages/nerv/src"],
+      // "nerv-devtools": ["packages/nerv-devtools/src"],
+      // "nerv-shared": ["packages/nerv-shared/src"],
+      // "nerv-utils": ["packages/nerv-utils/src"]
+    },
+    "rootDir": "."
+  },
+  // "include": [
+  //   "packages/*/src",
+  //   "packages/*/__tests__"
+  // ],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "tests",
+    "jest",
+    "lib",
+    "__tests__",
+    "**/*.test.ts"
+  ],
+  "compileOnSave": false
+}

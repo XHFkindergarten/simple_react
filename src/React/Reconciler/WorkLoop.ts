@@ -33,29 +33,8 @@ let renderExpirationTime = ExpirationTime.NoWork
 // 当前fiberRoot是complete、error还是suspended状态
 let workInProgressRootExitStatus: RootExitStatus = RootExitStatus.RootImcomplete
 
-// 严重的错误
-let workInProgressFatalError: any = null
-
-// 这个变量用来决定是否值得立刻restart调和
-let workInProgressRootHasPendingPing: boolean = false
-
 // 当前的effect链表
 let nextEffect: Fiber | null = null
-
-// @todo 下面是我完全不知道干嘛的变量
-let workInProgressRootLatestProcessedExpirationTime: number = ExpirationTime.Sync
-let workInProgressRootLatestSuspenseTimeout: number = ExpirationTime.Sync
-let workInProgressRootCanSuspendUsingConfig: SuspenseConfig | null = null
-let workInProgressRootNextUnprocessedUpdateTime: number = ExpirationTime.NoWork
-const a = 
-  workInProgressRootExitStatus
-    + workInProgressFatalError
-    + workInProgressRootHasPendingPing
-    + workInProgressRootLatestProcessedExpirationTime
-    + workInProgressRootLatestSuspenseTimeout
-    + workInProgressRootCanSuspendUsingConfig
-    + workInProgressRootNextUnprocessedUpdateTime
-console.warn(a)
 
 // 有离散更新的 fiberRoot set
 let rootsWithPendingDiscreteUpdates: Map<FiberRoot, number> | null = null
@@ -595,7 +574,6 @@ function commitRootImpl (
 function ensureRootIsScheduled(root: FiberRoot) {
   const lastExpiredTime = root.lastExpiredTime
   if (lastExpiredTime !== ExpirationTime.NoWork) {
-    console.warn('Expired work should flush synchronously')
     return
   }
 
@@ -755,7 +733,6 @@ function performSyncWorkOnRoot (root: FiberRoot) {
     // commitRoot(root)
   } else {
     // 刷新被动影响
-    console.warn('should flushPassiveEffect here')
     // @todo flushPassiveEffects()
     // 如果我们处理的fiberRoot和expirationTime已经改变了
     // 那么应该准备一个全新的执行栈，否则会继续上次的任务
@@ -864,13 +841,6 @@ export function prepareFreshStack (
   workInProgress = createWorkInProgress(root.current, null, expirationTime)
   renderExpirationTime = expirationTime
   workInProgressRootExitStatus = RootExitStatus.RootImcomplete
-  workInProgressFatalError = null
-
-  workInProgressRootLatestProcessedExpirationTime = ExpirationTime.Sync
-  workInProgressRootLatestSuspenseTimeout = ExpirationTime.Sync
-  workInProgressRootCanSuspendUsingConfig = null
-  workInProgressRootNextUnprocessedUpdateTime = ExpirationTime.NoWork
-  workInProgressRootHasPendingPing = false
 }
 // 同步的workLoop
 function workLoopSync () {

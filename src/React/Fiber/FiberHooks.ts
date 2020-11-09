@@ -42,8 +42,6 @@ export function renderWithHooks (
   renderExpirationTime = nextRenderExpirationTime
   currentRenderingFiber = workInProgress
   nextCurrentHook = current !== null ? current.memorizedState : null
-  console.warn('_', renderExpirationTime)
-  console.warn('_', nextCurrentHook)
   // hooks处理
   // @todo
   // ReactCurrentDispatcher.current = 

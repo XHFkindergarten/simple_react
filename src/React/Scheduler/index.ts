@@ -1,7 +1,14 @@
 import { PriorityLevel } from '../common'
+import { expirationTimeToMs } from '../Fiber/FiberExpiration'
 import { isNull, isNumber, isObject } from '../utils'
 import { Heap, peek, pop, push } from './MinHeap'
-import { cancelHostTimeout, requestHostCallback, requestHostTimeout } from './SchedulerHostConfig'
+import {
+  getCurrentTime,
+  cancelHostTimeout,
+  requestHostCallback,
+  requestHostTimeout,
+  shouldYieldToHost,
+} from './SchedulerHostConfig'
 
 // 记录当前唯一的优先级
 let currentPriorityLevel = PriorityLevel.NormalPriority
@@ -11,12 +18,13 @@ let isHostTimeoutScheduled = false
 
 let isHostCallbackScheduled = false
 
-// 是否正在执行任务
-let isPerformingWork = false
-
 // 任务是以双向环装链表存储的
 let firstTask: Task | null = null
+
 let firstDelayedTask: Task | null = null
+
+// 是否正在执行任务
+let isPerformingWork = false
 
 // 最大的 31 位整数
 const maxSigned31BitInt = 1073741823
@@ -70,22 +78,11 @@ function scheduler_flushTaskAtPriority_Idle (callback, didTimeout) {
 // 当前正在执行的任务
 let currentTask: Task | null = null
 
-// 初始时间
-const initialTime = Date.now()
 
 // 用小根堆数据结构存储的队列
 let taskQueue: Heap = []
 let timerQueue: Heap = []
 
-
-// 获取当前script运行市场【兼容】
-let getCurrentTime: () => number
-if (typeof performance === 'object' && typeof performance.now === 'function') {
-  getCurrentTime = () => performance.now()
-} else {
-  // 兼容浏览器
-  getCurrentTime = () => Date.now() - initialTime
-}
 
 // 在(React)优先级情况下运行
 function Schedule_runWithPriority (priorityLevel: PriorityLevel, eventHandler: Function) {
@@ -127,20 +124,19 @@ function cancelCallback (node: any) {
 
 }
 
-// 当前是否应该yield react的工作
+// 当前是否应该阻塞 react 的工作
 function shouldYield (): boolean {
+  // 获取当前的时间点
   const currentTime = getCurrentTime()
   advanceTimers(currentTime)
   // 第一个应该执行的任务
   const firstTask = peek(taskQueue)
   // 以下两种情况需要yield
+  // 1. 当前任何和第一个任务都存在，第一个任务的开始时间还没到，且过期时间小于当前任务
   return (
     (
-      // 其实意思就是说任务还在执行中
-      firstTask !== currentTask &&
       currentTask !== null &&
       firstTask !== null &&
-      (firstTask as any).callback !== null &&
       (firstTask as any).startTime <= currentTime &&
       (firstTask as any).expirationTime < currentTask.expirationTime
     )
@@ -148,29 +144,32 @@ function shouldYield (): boolean {
   )
 }
 
+// 将一些队列中将要过期的任务处理掉
 function advanceTimers (currentTime) {
-  // 检查哪些无法再推迟的任务并将它们加入到任务队列中去
-
-  // 处理还在等待计时的任务
-  let timer = peek(timerQueue)
-  while(timer !== null) {
-    if ((timer as any).callback === null) {
-      pop(timerQueue)
-    } else if ((timer as any).startTime <= currentTime) {
-      // 时间已经到了，加入到taskQueue中去
-      pop(timerQueue)
-      timer.sortIndex = (timer as any).expirationTime
-      push(taskQueue, timer)
-    } else {
-      // 剩下的计时器还处于pending状态
-      return
-    }
-    timer = peek(timerQueue)
+  // 检查过期任务并将它们加入到任务队列中去
+  // 条件: 任务开始时间要小于当前的时间
+  if (firstDelayedTask !== null && firstDelayedTask.startTime <= currentTime) {
+    do {
+      const task = firstDelayedTask
+      const next = task.next
+      if (task === next) {
+        // 只有一个任务
+        // firstDelayedTask = null 代表清空等待队列
+        firstDelayedTask = null
+      } else {
+        // 将当前任务从链表中取出
+        firstDelayedTask = next
+        const previous = task.previous
+        previous.next = next
+        next.previous = previous
+      }
+      task.next = task.previous = null
+      insertScheduledTask(task, task.expirationTime)
+    } while (
+      firstDelayedTask !== null &&
+      firstDelayedTask.startTime <= currentTime
+    )
   }
-}
-
-function shouldYieldToHost (): boolean {
-  return false
 }
 
 function scheduleCallback (
@@ -223,7 +222,17 @@ function scheduleCallback (
       }
 
       // schedule 一个 timeout
-      requestHostTimeout()
+      requestHostTimeout(handleTimeout, startTime - currentTime)
+    }
+  } else {
+    insertScheduledTask(newTask, expirationTime)
+
+    // 计划一个时间片回调
+    // 如果正在执行任务，就等到下个时间片
+    if (!isHostCallbackScheduled && !isPerformingWork) {
+      // 标记为已计划
+      isHostCallbackScheduled = true
+      requestHostCallback(flushWork)
     }
   }
 }
@@ -299,7 +308,7 @@ function flushWork (hasTimeRemaining, initialTime) {
   }
 }
 
-// 执行任务
+// 清空任务队列
 function flushTask (task: Task, currentTime: number): void {
   const next = task.next as Task
   if (next === task) {
@@ -404,7 +413,7 @@ function flushTask (task: Task, currentTime: number): void {
 }
 
 // 插入延迟的任务
-function insertDelayedTask (newTask, startTime) {
+function insertDelayedTask (newTask: Task, startTime: number) {
   // 将新的任务插入到列表中，根据开始时间排序
   if (firstDelayedTask === null) {
     // 说明这是链表中的第一个任务
@@ -438,6 +447,41 @@ function insertDelayedTask (newTask, startTime) {
   }
 }
 
+// 插入被计划了的任务列表(环状)，按照超时时间排序
+function insertScheduledTask (
+  newTask: Task,
+  expirationTime: number
+) {
+  if (firstTask === null) {
+    // 这是第一个
+    firstTask = newTask.next = newTask.previous = newTask
+  } else {
+    let next: Task | null = null
+    let task: Task = firstTask
+    do {
+      if (expirationTime < task.expirationTime) {
+        // 找到了插入点，next 指向被插入的前一个任务
+        next = task
+        break
+      }
+      task = task.next as Task
+    } while ( task !== firstTask )
+
+    if (next === null) {
+      // next 最终也没有被赋值，新任务的超时时间是最晚的
+      next = firstTask
+    } else if (next === firstTask) {
+      // 新任务的超时时间是最早的
+      firstTask = newTask
+    }
+
+    const previous = next.previous as Task
+    previous.next = next.previous = newTask
+    newTask.next = next
+    newTask.previous = previous
+  }
+}
+
 // const ImmediatePriority = 1;
 // const UserBlockingPriority = 2;
 // const NormalPriority = 3;
@@ -456,4 +500,3 @@ export {
   LowPriority as Scheduler_LowPriority,
   IdlePriority as Scheduler_IdlePriority
 }
-console.warn('isPerformingWork', isPerformingWork)

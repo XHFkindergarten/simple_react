@@ -18,7 +18,6 @@ export enum UpdateState {
 // 只应该在 `processUpdateQueue` 执行之后再被读取
 // 通过 `checkHasForceUpdateAfterProcessing` 函数
 let hasForceUpdate = false
-console.warn('hasForceUpdate', hasForceUpdate)
 interface UpdateConstructorProps {
   expirationTime: number
   suspenseConfig: SuspenseConfig | null

@@ -37,7 +37,12 @@ export function getClosestInstanceFromNode (targetNode) {
   if (targetInst) {
     return targetInst
   }
+
   // @todo
+  // 这段逻辑是考虑到事件触发组件并不是事件的直接目标
+  // 真正的 targetInstance 可能还处于 suspense 状态中
+  
+  return null
 }
 
 export function getNodeFromInstance(inst) {

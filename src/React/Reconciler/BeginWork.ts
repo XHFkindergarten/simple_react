@@ -17,7 +17,6 @@ import { isFunction, isNull } from "../utils"
 
 // 是否组件状态已经发生了改变
 let didReceiveUpdate: boolean = false
-console.warn('didReceiveUpdate', didReceiveUpdate)
 
 
 
@@ -51,7 +50,6 @@ export function beginWork (
           break
         // @todo
       }
-      console.warn('bailoutOnAlreadyFinishedWork')
       return bailoutOnAlreadyFinishedWork(
         current,
         workInProgress,
@@ -382,7 +380,6 @@ function mountIndeterminateComponent (
     context,
     renderExpirationTime
   )
-  console.warn('_', value)
   // 这个value已经是得到了渲染结果
   workInProgress.effectTag |= EffectTag.PerformedWork
   // if (

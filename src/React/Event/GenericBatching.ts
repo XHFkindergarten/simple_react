@@ -35,7 +35,6 @@ export function batchedEventUpdates (fn, a) {
   }
 }
 
-console.warn('isBatchingEventUpdates', isBatchingEventUpdates)
 export function discreteUpdates (
   fn: Function,
   a: any,

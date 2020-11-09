@@ -12,7 +12,6 @@ import { get as getInstance } from '../InstanceMap'
 export function getNearestMountedFiber (fiber: Fiber): null | Fiber {
   let node = fiber
   let nearestMounted: Fiber | null = fiber
-
   if (!fiber.alternate) {
     // 没有 workInProgress，说明这个fiber节点是一个还没有被插入的新树
     // 那么节点上应该会有一个插入的 effect tag

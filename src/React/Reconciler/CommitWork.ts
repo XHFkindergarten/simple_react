@@ -69,7 +69,6 @@ export function commitPlacement (finishedWork: Fiber): void {
       continue
     }
     if (node === finishedWork) {
-      console.warn('不应该出现的情况')
       return
     }
     // 向上移动直到找到有兄弟节点或到达顶端

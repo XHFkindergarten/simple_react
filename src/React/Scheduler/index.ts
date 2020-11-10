@@ -92,7 +92,7 @@ let taskQueue: Heap = []
 
 
 // 在(React)优先级情况下运行
-function Schedule_runWithPriority (priorityLevel: PriorityLevel, eventHandler: Function) {
+function Scheduler_runWithPriority (priorityLevel: PriorityLevel, eventHandler: Function) {
   // 如果参数不合法，变为默认值
   if (!Object.values(PriorityLevel).includes(priorityLevel)) {
     priorityLevel = PriorityLevel.NormalPriority
@@ -550,7 +550,7 @@ function insertScheduledTask (
 
 export {
   getCurrentTime,
-  Schedule_runWithPriority,
+  Scheduler_runWithPriority,
   scheduleCallback as Scheduler_scheduleCallback,
   cancelCallback,
   shouldYield,

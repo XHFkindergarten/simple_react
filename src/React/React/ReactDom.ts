@@ -56,8 +56,8 @@ function legacyRenderSubTreeIntoContainer (
     )
     // 获取fiberRoot节点
     fiberRoot = root._internalRoot
-    // @todo 有回调的话执行回调
-    // @todo 初次挂载是不需要batch的
+    
+    // 初次挂载是不需要进行时间片批处理的
     unbatchedUpdate(() => {
       updateContainer(
         element,

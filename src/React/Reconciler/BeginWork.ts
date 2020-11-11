@@ -3,13 +3,14 @@ import { EffectTag, ExpirationTime, Mode, WorkTag } from "../common"
 import { Fiber } from "../Fiber/Fiber"
 import { constructClassInstance, mountClassInstance, updateClassInstance } from "../FiberClassComponent"
 import { pushTopLevelContextObject } from "../Fiber/FiberContext"
-import { renderWithHooks } from "../Fiber/FiberHooks"
+import { renderWithHooks, resetHooks } from "../Fiber/FiberHooks"
 import { pushHostContainer } from "../HostContext"
 import { FiberRoot } from "../Fiber/FiberRoot"
 import { shouldSetTextContent } from "../Dom/DomHostConfig"
 import { pushHostContext } from "../HostContext"
 import { processUpdateQueue, UpdateQueue } from "../UpdateQueue"
 import { isFunction, isNull } from "../utils"
+import { expirationTimeToMs } from "../Fiber/FiberExpiration"
 
 /**
  * 真正的工作内容
@@ -344,35 +345,20 @@ function mountIndeterminateComponent (
   workInProgress: Fiber,
   Component: Function,
   renderExpirationTime: number
-): null {
+): Fiber | null {
   if (current !== null) {
     // 将wip与原fiber进行解绑
     current.alternate = null;
     workInProgress.alternate = null;
-    // 计划一个Placement的Tag
+    // 在 effect 中混入 Placement 上下文
     workInProgress.effectTag |= EffectTag.Placement;
   }
 
   const props = workInProgress.pendingProps
-  let context = {}
-  // @todo
-  // 没懂这里在处理啥
-  // if (!disableLegacyContext) {
-  //   const unmaskedContext = getUnmaskedContext(
-  //     workInProgress,
-  //     Component,
-  //     false,
-  //   );
-  //   console.warn('unmaskedContext', unmaskedContext)
-  //   context = getMaskedContext(workInProgress, unmaskedContext);
-  // }
-  
 
-  // @todo
-  // prepareToReadContext(workInProgress, renderExpirationTime)
-  let value
-  // @todo if (__DEV__) {...
-  value = renderWithHooks(
+  const context = {}
+  
+  const value = renderWithHooks(
     null,
     workInProgress,
     Component,
@@ -380,13 +366,34 @@ function mountIndeterminateComponent (
     context,
     renderExpirationTime
   )
-  // 这个value已经是得到了渲染结果
-  workInProgress.effectTag |= EffectTag.PerformedWork
-  // if (
-  //   isObject(value) &&
-  //   value !== null && 
-  //   typeof value.render
-  // )
+
+  if (
+    typeof value === 'object' &&
+    value !== null &&
+    typeof value.render === 'function' &&
+    value.$$typeof === undefined
+  ) {
+    // 拥有 render 函数则为 class component
+    workInProgress.tag = WorkTag.ClassComponent
+
+    // 清空所有 hook 操作
+    resetHooks()
+
+    // 这种情况应该是写了 FC 但是给函数赋值了一个 render 属性
+  } else {
+    workInProgress.tag = WorkTag.FunctionComponent
+    
+    // 当场开始调和
+    reconcileChildren(
+      null,
+      workInProgress,
+      value,
+      renderExpirationTime
+    )
+
+    return workInProgress.child
+  }
+
   return null
 }
 

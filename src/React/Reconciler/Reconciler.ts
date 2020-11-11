@@ -26,20 +26,16 @@ export function updateContainer (
   fiberRoot: FiberRoot,
   parentComponent?: any,
   callback?: Function
-  // FiberRootcontainer: FiberRoot,
-  // expirationTime: ExpirationTime,
-  // suspenseConfig: null | SuspenseConfig,
-  // parentComponent?: ReactComponentElement<any, any>,
 ) {
   // 获取当前的顶层fiber节点
   const current = fiberRoot.current
   // 获取当前的time
   const currentTime = getCurrentTime()
 
-  // @todo 现在还不知道是干嘛的
+  // 悬挂配置
   const suspenseConfig = requestCurrentSuspenseConfig()
 
-  // 计算过期时间
+  // 根据 fiber 的优先级计算过期时间
   const expirationTime = computeExpirationForFiber(
     currentTime,
     current,
@@ -66,17 +62,8 @@ export function updateContainerAtExpirationTime (
   // 当前fiber节点
   const current = container.current
 
-  // @todo DEV模式调用devtool
-
-  // @todo
-  const context = getContextForSubtree(parentComponent)
-  if (container.context === null) {
-    // 如果当前fiberRoot没有上下文直接更新
-    container.context = context
-  } else {
-    // 如果已有上下文在下次更新时更新上下文
-    container.pendingContext = context
-  }
+  // 安排整个 root 的更新
+  
   return ScheduleRootUpdate(
     current,
     element,
@@ -94,16 +81,16 @@ export function ScheduleRootUpdate (
   suspenseConfig: SuspenseConfig | null,
   callback?: Function
 ) {
-  // update终于来了，创建一个update实例
+  // 创建一个update实例
   const update = createUpdate(expirationTime, suspenseConfig)
-  // 唯一的参数就是react element
+  // 对于作用在根节点上的 react element
   update.payload = {
     element
   }
   // @todo 目前还未知这个处理的意义
   callback = callback === undefined ? null : callback as any
 
-  // 将更新任务安排进入队列
+  // 将 update 挂载到根 fiber 上
   enqueueUpdate(
     current,
     update

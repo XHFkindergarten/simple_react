@@ -5,7 +5,7 @@
 import {
   cancelCallback,
   getSchedulePriorityLevel,
-  Schedule_runWithPriority,
+  Scheduler_runWithPriority,
   getCurrentTime as Scheduler_now,
   Scheduler_scheduleCallback,
   Scheduler_ImmediatePriority
@@ -81,7 +81,7 @@ export function runWithPriority<T> (
   fn: () => T
 ) {
   const schedulerPriority = reactPriority2SchedulePriority(reactPriorityLevel)
-  return Schedule_runWithPriority(schedulerPriority, fn)
+  return Scheduler_runWithPriority(schedulerPriority, fn)
 }
 
 // 根据Schedule中环境的运行优先级换算成为react的运行优先级

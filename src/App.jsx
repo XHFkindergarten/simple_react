@@ -1,30 +1,18 @@
 /** @jsx createElement */
-import { Component, createElement } from './React/index'
+import { Component, createElement, useState } from './React/index'
 
-class App extends Component {
+function App () {
 
-  state = {
-    toggle: false
-  }
-  
-  handleToggle = () => {
-    const { toggle } = this.state
-    this.setState({
-      toggle: !toggle
-    })
-  }
+  const [ toggle, setToggle ] = useState(true)
 
-  render() {
-    const { toggle } = this.state
-    return (
-      <h1>
-        <div>
-          {toggle ? 'Nerv_Fiber' : 'O2 Team'}
-        </div>
-        <div onClick={this.handleToggle}>XHFk1nderg2rten</div>
-      </h1>
-    )
-  }
+  const handleClick = () => setToggle(!toggle)
+
+  return (
+    <h1>
+      <div>{ toggle ? 'Nerv_Fiber' : 'React_Fiber'}</div>
+      <div onClick={handleClick}>XHFk1ndergarten</div>
+    </h1>
+  )
 }
 
 export default App;

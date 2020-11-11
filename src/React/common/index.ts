@@ -33,10 +33,6 @@ export {
   disableLegacyContext
 } from './FeatureFlag'
 
-export type {
-  Hook
-} from './Hook'
-
 export { ExpirationTime } from './Scheduler'
 
 export type { ScheduleCallback } from './Scheduler'

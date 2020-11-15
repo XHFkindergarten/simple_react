@@ -139,10 +139,7 @@ function updateHostComponent (
     // 对于子元素为纯文字的节点，递归就已经到达了终点 ^ ^.
     nextChildren = null
   }
-  // @todo 这里有个奇怪的判断
 
-  // markRef(current, workInProgress)
-  // 检查host config来看这个children是不是应该隐藏
   reconcileChildren(
     current,
     workInProgress,

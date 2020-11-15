@@ -97,6 +97,47 @@ function ChildReconciler (
     }
   }
 
+  function updateSlot(
+    returnFiber: Fiber,
+    oldFiber: Fiber | null,
+    newChild: any,
+    expirationTime: number,
+  ): Fiber | null {
+    const key = oldFiber !== null ? oldFiber.key : null;
+
+    if (typeof newChild === 'string' || typeof newChild === 'number') {
+      if (key !== null) {
+        return null;
+      }
+      return updateTextNode(
+        returnFiber,
+        oldFiber,
+        '' + newChild,
+        expirationTime,
+      );
+    }
+
+    if (typeof newChild === 'object' && newChild !== null) {
+      switch (newChild.$$typeof) {
+        case REACT_ELEMENT_TYPE: {
+          if (newChild.key === key) {
+            return updateElement(
+              returnFiber,
+              oldFiber,
+              newChild,
+              expirationTime,
+            );
+          } else {
+            return null;
+          }
+        }
+      }
+    }
+
+    return null;
+  }
+
+
   function updateFromMap (
     existingChildren: Map<string | number, Fiber>,
     returnFiber: Fiber,
@@ -272,11 +313,44 @@ function ChildReconciler (
     let lastPlacedIndex = 0
     
     let newIndex = 0
-    // let nextOldFiber = null
-    // @todo
-    // for循环 old fibers
-    // for(; isNull(!oldFiber) && newIndex < newChildren.length; newIndex++) 
+    
+    let nextOldFiber: Fiber | null = null
+
     // 如果newIndex已经到达了newChildren的长度，那么后续的old Fiber都可以标记Deletion了
+
+    for (; oldFiber !== null && newIndex < newChildren.length; newIndex++) {
+      if (oldFiber.index > newIndex) {
+        nextOldFiber = oldFiber
+        oldFiber = null
+      } else {
+        nextOldFiber = oldFiber.sibling
+      }
+
+      const newFiber = updateSlot(
+        returnFiber,
+        oldFiber,
+        newChildren[newIndex],
+        expirationTime
+      )
+
+      if (newFiber === null) {
+        if (oldFiber === null) {
+          oldFiber = nextOldFiber
+        }
+        break
+      }
+
+      lastPlacedIndex = placeChild(newFiber, lastPlacedIndex, newIndex)
+
+      if (previousNewFiber === null) {
+        resultingFirstChild = newFiber
+      } else {
+        previousNewFiber.sibling = newFiber
+      }
+      previousNewFiber = newFiber
+      oldFiber = nextOldFiber
+    }
+
     if (newIndex === newChildren.length) {
       deleteRemainingChildren(returnFiber, oldFiber)
       return resultingFirstChild
@@ -328,7 +402,7 @@ function ChildReconciler (
         if (previousNewFiber === null) {
           // 说明最终只需要更新一个 fiber
           resultingFirstChild = newFiber
-        } 
+        }
         // else {
         //   // 说明有一个链表，多个子 fiber 触发更新
         //   previousNewFiber.sibling = newFiber

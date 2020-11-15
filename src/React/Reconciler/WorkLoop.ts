@@ -908,7 +908,7 @@ function completeUnitOfWork (unitOfWork: Fiber): Fiber | null {
     // 兄弟Fiber
     const siblingFiber = workInProgress.sibling
     // 如果存在兄弟节点，下一个unitOfWork就处理兄弟节点
-    if (!isNull(siblingFiber)) {
+    if (siblingFiber !== null) {
       return siblingFiber
     }
     // 如果不存在兄弟节点了，那么向root逐层处理

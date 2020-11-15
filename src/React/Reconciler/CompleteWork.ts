@@ -132,9 +132,6 @@ export function completeWork (
       const rootContainerInstance = getRootHostContainer()
       const type = workInProgress.type
       if (current !== null && workInProgress.stateNode !== null) {
-        // @todo
-        // 不是初次渲染，更新已有的dom
-        // updateHostComponent
         updateHostComponent(
           current,
           workInProgress,
@@ -149,34 +146,23 @@ export function completeWork (
         // 获取namespace
         const currentHostContext = getHostContext()
 
-        // 判断是不是hydrated
-        // @todo
-        let wasHydrated = false
-        if (wasHydrated) {
-          // @todo 略过
-        } else {
-          let instance = createInstance(
-            type as string,
-            newProps,
-            rootContainerInstance,
-            currentHostContext,
-            workInProgress
-          )
-          // 将之前所有已经生成的子dom元素装载到instance实例中
-          appendAllChildren(instance, workInProgress, false, false)
-          // This needs to be set before we mount Flare event listeners
-          workInProgress.stateNode = instance
+        let instance = createInstance(
+          type as string,
+          newProps,
+          rootContainerInstance,
+          currentHostContext,
+          workInProgress
+        )
+        // 将之前所有已经生成的子dom元素装载到instance实例中
+        appendAllChildren(instance, workInProgress, false, false)
+        // This needs to be set before we mount Flare event listeners
+        workInProgress.stateNode = instance
 
-          // feat: 这个函数真的藏得很隐蔽，我不知道这些人是怎么能注释都不提一句的呢→_→
-          // finalizeInitialChildren 作用是将props中的属性挂载到真实的dom元素中去
-          // 返回一个bool值，代表是否需要auto focus(input, textarea...)
-          if (finalizeInitialChildren(instance, type as string, newProps, rootContainerInstance, currentHostContext)) {
-            markUpdate(workInProgress)
-          }
-
-          // @todo
-          // if (workInProgress.ref !== null) 
-          // markRef(workInProgress)
+        // feat: 这个函数真的藏得很隐蔽，我不知道这些人是怎么能注释都不提一句的呢→_→
+        // finalizeInitialChildren 作用是将props中的属性挂载到真实的dom元素中去
+        // 返回一个bool值，代表是否需要auto focus(input, textarea...)
+        if (finalizeInitialChildren(instance, type as string, newProps, rootContainerInstance, currentHostContext)) {
+          markUpdate(workInProgress)
         }
       }
     }

@@ -1,23 +1,28 @@
 /** @jsx createElement */
-import { createElement, useReducer, useState } from './React/index'
+import { Component, createElement, useReducer, useState } from './React/index'
 
-function App () {
-  console.warn('render')
-  const [ count, setCount ] = useState(0)
-
-  console.warn('得到的count', count)
-  
-  const handleClick = () => {
-    console.warn('当前的 count', count)
-    setCount(count + 1)
+class CC extends Component {
+  state = {
+    toggle: true
   }
 
-  return (
-    <h1>
-      <div>{count}</div>
-      <div onClick={handleClick}>XHFk1ndergarten</div>
-    </h1>
-  )
+  handleClick = () => {
+    const toggle = this.state.toggle
+    this.setState({
+      toggle: !toggle
+    })
+  }
+
+  render () {
+    const { toggle } = this.state
+    return (
+      <div>
+        <h1>Class Component</h1>
+        <h2>{ toggle ? 'O2 Team' : 'React Fiber Demo'}</h2>
+        <h2 onClick={this.handleClick}>click</h2>
+      </div>
+    )
+  }
 }
 
-export default App;
+export default CC;

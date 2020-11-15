@@ -188,7 +188,9 @@ function dispatchAction<S, A> (
     fiber === currentlyRenderingFiber ||
     (alternate !== null && alternate === currentlyRenderingFiber)
   ) {
-    console.warn('不执行的代码')
+    // 对于function 内的第一个 hook 是永远不会触发这段逻辑的
+
+
     // 更新标识
     didScheduleRenderPhaseUpdate = true
     const update: HookUpdate<S, A> = createUpdate<S, A>(renderExpirationTime, action)
@@ -224,7 +226,7 @@ function dispatchAction<S, A> (
     )
 
     // const update: HookUpdate<S, A> = createUpdate(expirationTime, action)
-    const update: HookUpdate<S, A> = {
+    const newUpdate: HookUpdate<S, A> = {
       expirationTime,
       suspenseConfig,
       action,
@@ -233,26 +235,30 @@ function dispatchAction<S, A> (
       next: null,
     }
 
-    // 插入链表
+    // 插入 queue 中
     const last = queue.last
     if (last === null) {
       // 第一次更新，创造一个环状链表
-      update.next = update
+      newUpdate.next = newUpdate
     } else {
-      const first = last.next
-      if (first !== null) {
-        // 仍然是环状链表
-        update.next = first
+      // queue.last 的 next
+      const lastOfLast = last.next
+      if (lastOfLast !== null) {
+        // 如果 last.next 还有值的话，插入到这个新 update 的 next
+        newUpdate.next = lastOfLast
       }
-      last.next = update
+      last.next = newUpdate
     }
-    queue.last = update
+    // 无论如何当前队列的 last.next 会指向 newUpdate
+    queue.last = newUpdate
 
     if (
       fiber.expirationTime === ExpirationTime.NoWork &&
       (alternate === null || alternate.expirationTime === ExpirationTime.NoWork)
     ) {
-      // 如果当前 fiber 的优先级非常高
+      // 当前的队列为空，说明没有其他的工作(第一次更新)
+      // 我们可以提前使用之前缓存的 reducer 和 baseState 以及 action
+      // 去计算这次更新的最终结果，然后在 useReducer 函数中就可以直接使用这个结果
       const lastRenderedReducer = queue.lastRenderedReducer
       if (lastRenderedReducer !== null) {
         try {
@@ -262,9 +268,9 @@ function dispatchAction<S, A> (
           // 新计算出来的 state
           const eagerState = lastRenderedReducer(currentState, action)
 
-          update.eagerReducer = lastRenderedReducer
+          newUpdate.eagerReducer = lastRenderedReducer
   
-          update.eagerState = eagerState
+          newUpdate.eagerState = eagerState
 
           if (eagerState === currentState) {
             // 如果新旧 state 完全相等
@@ -322,6 +328,7 @@ function updateWorkInProgressHook(): Hook {
       
       next: null
     }
+    console.warn('复制时的 baseUpdate', newHook.baseUpdate)
 
     if (workInProgressHook === null) {
       // wip hook 链表中的第一个 hook
@@ -385,6 +392,8 @@ function mountReducer<S, I, A> (
   const queue = hook.queue = createUpdateQueue(initialState)
   queue.lastRenderedReducer = reducer
 
+  // 这个 dispatch 函数将被一直复用
+  // currentlyRenderingFiber 指向当前 fiber 的 wip
   const dispatch: Dispatch<A> = queue.dispatch = dispatchAction.bind(
     null,
     currentlyRenderingFiber,
@@ -392,7 +401,7 @@ function mountReducer<S, I, A> (
   )
   return [ hook.memorizedState, dispatch ]
 }
-let tempHook: any = null
+
 // 更新 reducer
 function updateReducer<S, I, A> (
   reducer: (S, A) => S,
@@ -405,23 +414,27 @@ function updateReducer<S, I, A> (
   
   // 这个 queue 不可以为 null
   const queue = hook.queue as HookUpdateQueue<S, A>
+
   // 更新 reducer
   queue.lastRenderedReducer = reducer
 
+  // @todo 
   // 没有 re-render 的情况
   
   // last 指向的是最后一次作用的 update
   const last = queue.last
 
   // baseUpdate 指向的是上一次的 update
+  // 对于第一次 update ,这个值为 null
   const baseUpdate = hook.baseUpdate
-  console.warn('baseUpdate', baseUpdate)
   // baseState 指向当前的 state
   const baseState = hook.baseState
 
   // 找到第一个没有被执行到的 update
   let first
   if (baseUpdate !== null) {
+    console.warn('baseUpdate', baseUpdate)
+    console.warn('last', last)
     // 说明已经不是第一次触发更新了
     if (last !== null) {
       // 对于第一次 update，last 必定为 null
@@ -437,15 +450,21 @@ function updateReducer<S, I, A> (
     first = last !== null ? last.next : null
   }
 
-  // 所以理论上，first 永远不会是 null (?)
+  // 理论上，first 永远不会是 null
   if (first !== null) {
+    // 指向最新的 hook state
     let newState = baseState
+    // 指向上一个 update
+    let prevUpdate = baseUpdate
+    // 当前 update 链表的头部
+    let update = first
+    // 是否因为优先级问题跳过了
+    let didSkip = false
+
+    // 新的 baseState 和 baseUpdate
     let newBaseState = null
     let newBaseUpdate: HookUpdate<S, A> | null = null
-    let prevUpdate = baseUpdate
-    let update = first
-    let didSkip = false
-    console.warn('update', update)
+
     do {
       const updateExpirationTime = update.expirationTime
       if (updateExpirationTime < renderExpirationTime) {
@@ -460,7 +479,9 @@ function updateReducer<S, I, A> (
           remainingExpirationTime = updateExpirationTime
         }
       } else {
-        // 有足够的优先级
+        // eagerState 是优先级很高的情况下，在 dispatchAction 阶段提前计算出的结果
+        // 当前前提是 reducer 和 eagerReducer 是同一个函数
+        // 证明处于同一个 FunctionComponent 函数体中
         if (update.eagerReducer === reducer) {
           newState = update.eagerState
         } else {
@@ -471,6 +492,7 @@ function updateReducer<S, I, A> (
       prevUpdate = update
       update = update.next
     } while (update !== null && update !== first)
+
 
     if (!didSkip) {
       newBaseUpdate = prevUpdate
@@ -490,6 +512,7 @@ function updateReducer<S, I, A> (
   }
 
   const dispatch: Dispatch<A>  = queue.dispatch as Dispatch<A>
+  console.warn('返回结果是', hook.memorizedState)
   return [ hook.memorizedState, dispatch ]
 }
 
@@ -561,8 +584,8 @@ export function renderWithHooks (
   // 当前 fiber
   const renderedWork: Fiber = currentlyRenderingFiber
 
-  renderedWork.memorizedState = firstWorkInProgressWork
-  console.warn('firstWorkInProgress', firstWorkInProgressWork)
+  // renderedWork.memorizedState = firstWorkInProgressWork
+  renderedWork.memorizedState = workInProgressHook
   renderedWork.expirationTime = remainingExpirationTime
   renderedWork.updateQueue = componentUpdateQueue as any
   renderedWork.effectTag |= sideEffectTag
@@ -577,11 +600,10 @@ export function renderWithHooks (
   renderExpirationTime = ExpirationTime.NoWork
   currentlyRenderingFiber = null
 
-  firstWorkInProgressWork = null
-
   currentHook = null
   nextCurrentHook = null
 
+  firstWorkInProgressWork = null
   workInProgressHook = null
   nextWorkInProgressHook = null
   

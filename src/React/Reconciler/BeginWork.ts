@@ -10,17 +10,18 @@ import { shouldSetTextContent } from "../Dom/DomHostConfig"
 import { pushHostContext } from "../HostContext"
 import { processUpdateQueue, UpdateQueue } from "../UpdateQueue"
 import { isFunction, isNull } from "../utils"
-import { expirationTimeToMs } from "../Fiber/FiberExpiration"
+
+// 当前 wip 是否收到了更新
+let didReceiveUpdate = false
+
+
+export function markWorkInProgressReceivedUpdate (): void {
+  didReceiveUpdate = true;
+}
 
 /**
- * 真正的工作内容
+ * 开始工作
  */
-
-// 是否组件状态已经发生了改变
-let didReceiveUpdate: boolean = false
-
-
-
 export function beginWork (
   current: Fiber | null,
   workInProgress: Fiber,
@@ -28,13 +29,19 @@ export function beginWork (
 ): Fiber | null {
   // 最新的过期时间
   const updateExpirationTime = workInProgress.expirationTime
+
   if (current !== null) {
+
     const oldProps = current.memorizedProps
     const newProps = workInProgress.pendingProps
+
     if (oldProps !== newProps) {
+      // 标记当前组件发生了更新
       didReceiveUpdate = true
     } else if (updateExpirationTime < renderExpirationTime) {
+      // 标记当前组件未发生更新
       didReceiveUpdate = false
+
       switch (workInProgress.tag) {
         case WorkTag.HostRoot:
           pushHostRootContext(workInProgress)
@@ -56,7 +63,11 @@ export function beginWork (
         workInProgress,
         renderExpirationTime
       )
+    } else {
+      didReceiveUpdate = false
     }
+  } else {
+    didReceiveUpdate = false
   }
   // 在进入开始阶段前，reset expirationTime
   workInProgress.expirationTime = ExpirationTime.NoWork
@@ -86,10 +97,21 @@ export function beginWork (
         renderExpirationTime
       )
     
+    // 函数组件
+    case WorkTag.FunctionComponent:
+      const Component = workInProgress.type;
+      const unresolvedProps = workInProgress.pendingProps;
+      const resolvedProps = unresolvedProps
+      return updateFunctionComponent(
+        current,
+        workInProgress,
+        Component as Function,
+        resolvedProps,
+        renderExpirationTime
+      ) as Fiber | null
     // 原生组件
     case WorkTag.HostComponent:
-      const res = updateHostComponent(current, workInProgress, renderExpirationTime)
-      return res
+      return updateHostComponent(current, workInProgress, renderExpirationTime)
   }
   return null
 }
@@ -101,7 +123,7 @@ function updateHostComponent (
   renderExpirationTime: number
 ) {
   pushHostContext(workInProgress)
-  if (isNull(current)) {
+  if (current === null) {
     // @todo
   }
 
@@ -120,7 +142,6 @@ function updateHostComponent (
   // @todo 这里有个奇怪的判断
 
   // markRef(current, workInProgress)
-
   // 检查host config来看这个children是不是应该隐藏
   reconcileChildren(
     current,
@@ -256,6 +277,39 @@ function finishClassComponent (
   return workInProgress.child
 }
 
+// 更新 FC
+function updateFunctionComponent (
+  current: Fiber | null,
+  workInProgress: Fiber,
+  Component: Function,
+  nextProps: any,
+  renderExpirationTime: number
+): Fiber | null {
+  const context = {}
+  
+  const nextChildren = renderWithHooks(
+    current,
+    workInProgress,
+    Component,
+    nextProps,
+    context,
+    renderExpirationTime
+  )
+  
+  // 已经得到了新的 fiber, 混入 performed 上下文
+  workInProgress.effectTag |= EffectTag.PerformedWork
+
+  // 调和，得出结果
+  reconcileChildren(
+    current,
+    workInProgress,
+    nextChildren,
+    renderExpirationTime
+  )
+
+  return workInProgress.child
+}
+
 
 // 放弃之前已经完成的工作
 export function bailoutOnAlreadyFinishedWork (
@@ -353,11 +407,9 @@ function mountIndeterminateComponent (
     // 在 effect 中混入 Placement 上下文
     workInProgress.effectTag |= EffectTag.Placement;
   }
-
   const props = workInProgress.pendingProps
 
   const context = {}
-  
   const value = renderWithHooks(
     null,
     workInProgress,
@@ -405,7 +457,7 @@ export function reconcileChildren (
   nextChildren: any,
   renderExpirationTime: number
 ) {
-  if (isNull(current)) {
+  if (current === null) {
     // 说明该组件目前仍然没有fiber实例，还从未被render过
     // 在render之前完全递归调和完所有的子节点，不处理任何的副作用
     workInProgress.child = reconcileChildFibers(

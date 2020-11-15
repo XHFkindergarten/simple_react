@@ -14,7 +14,24 @@ function resolveDispatcher () {
 }
 
 export function useState<S>(initialState: (() => S) | S) {
-  const dispatcher = resolveDispatcher()
-  return dispatcher.useState(initialState)
+  try {
+    const dispatcher = resolveDispatcher()
+    return dispatcher.useState(initialState)
+  } catch (e) {
+    console.error(e)
+  }
+}
+
+export function useReducer<S, I, A> (
+  reducer: (S, A) => S,
+  initialArg: I,
+  init?: (I) => S
+) {
+  try {
+    const dispatcher = resolveDispatcher()
+    return dispatcher.useReducer(reducer, initialArg, init)
+  } catch (e) {
+    console.error(e)
+  }
 }
 

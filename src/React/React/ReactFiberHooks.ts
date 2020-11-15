@@ -10,6 +10,11 @@ type BasicStateAction<S> = ((s: S) => S) | S
 
 export type Dispatcher = {
   useState<S>(initialState: (() => S) | S): [ S, Dispatch<BasicStateAction<S>>],
+  useReducer<S, I, A>(
+    reducer: (S, A) => S,
+    initialArg: I,
+    init?: (I) => S
+  )
   useEffect (
     create: () => (() => void) | void,
     deps: any[] | void | null

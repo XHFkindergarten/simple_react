@@ -9,7 +9,7 @@ import { completeWork } from "./CompleteWork";
 import { commitPlacement, commitWork } from "./CommitWork";
 import { computeSuspenseExpiration, expirationTimeToMs, msToExpirationTime } from "../Fiber/FiberExpiration";
 import { SuspenseConfig } from "../Fiber/FiberSuspenseConfig";
-import { Interaction, __interactionsRef } from "../Scheduler/Tracing";
+import { __interactionsRef } from "../Scheduler/Tracing";
 import { inferPriorityFromExpirationTime, LOW_PRIORITY_EXPIRATION } from "../Fiber/FiberExpirationTime";
 import ReactCurrentDispatcher from "../React/ReactCurrentDispatcher";
 import { ContextOnlyDispatcher } from "../Fiber/FiberHooks";
@@ -219,9 +219,8 @@ function ScheduleUpdateOnFiber (
   current: Fiber,
   expirationTime: number
 ) {
+  // 根据 workFiber 的过期时间自下而上逐个标记父节点的 expirationTime
   const root = markUpdateTimeFromFiberToRoot(current, expirationTime)
-  // @todo
-  // 如果root === null 抛出异常和报错
 
   // 获取当前 fiber 的运行优先级
   const priority = getCurrentPriorityLevel()
@@ -236,22 +235,16 @@ function ScheduleUpdateOnFiber (
     ) {
       // 满足上述条件，说明当前正在执行优先级最高的同步渲染任务
 
-      // 缓存过程中的用户交互活动等
-      // @todo 存储用户的交互，在render完毕后再取出执行
-      // schedulePendingInteractions
-
       // 开始同步构建 fiber 树
       performSyncWorkOnRoot(root)
     } else {
       ensureRootIsScheduled(root)
-      // schedulePendingInteractions(root, expirationTime)
       if (excutionContext === ExcutionContext.NoContext) {
         flushSyncCallbackQueue()
       }
     }
   } else {
     ensureRootIsScheduled(root)
-    // schedulePendingInteractions(root, expirationTime)
   }
   if (
     // 当前处于一个离散事件上下文
@@ -271,28 +264,6 @@ function ScheduleUpdateOnFiber (
     }
   }
 }
-
-// function schedulePendingInteractions (
-//   root: FiberRoot,
-//   expirationTime: number
-// ): void {
-//   scheduleInteractions(root, expirationTime, __interactionsRef.current)
-// }
-
-/**
- * 安排交互任务
- */
-function scheduleInteractions (
-  root: FiberRoot,
-  expirationTime: number,
-  interactions: Set<Interaction>
-): void {
-  if (interactions.size > 0) {
-    // 如果已经有了标记的交互
-    // @todo
-  }
-}
-
 /**
  * 更新fiber节点及其所有上级节点的expiration time
  */
@@ -737,7 +708,6 @@ function performSyncWorkOnRoot (root: FiberRoot) {
       // 所有的 fiber 操作都是在 workInProgress 中进行
       prepareFreshStack(root, expirationTime)
     }
-
     // 如果我们有一个WIP，意味着存在工作要做
     if (workInProgress !== null) {
       const prevExcutionContext = excutionContext
@@ -842,14 +812,11 @@ function performUnitOfWork (workFiber: Fiber): Fiber | null {
   // 当前暴露出来的 alternate 对象
   // 但是通过使用它意味着我们可以再 diff 时直接进行读写（空间换时间）
   const current = workFiber.alternate
+
   // 打工函数
   let next = beginWork(current, workFiber, renderExpirationTime)
-
-  if (next !== null && next.tag === 5) {
-  }
   // 将处理完毕的 props 设置为已完成的
   workFiber.memorizedProps = workFiber.pendingProps
-
   if (next === null) {
     // 每一次 performUnitOfWork 都只处理一个 fiber
     // 但是当 next 为 null 时，说明已经到了 fiber 树的叶子节点

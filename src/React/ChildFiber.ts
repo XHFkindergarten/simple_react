@@ -447,7 +447,8 @@ function ChildReconciler (
     newChild: any,
     expirationTime: number
   ): any {
-    if (isNull(newChild)) {
+
+    if (newChild === null) {
       // 并没有子元素需要处理
       return null
     }

@@ -10,7 +10,7 @@ import { Fiber } from "../Fiber/Fiber"
 
 // 执行Placement -> real dom
 export function commitPlacement (finishedWork: Fiber): void {
-  // 获取最近的原生父级fiber或者rootFiber
+  // 获取最近的原生父级 fiber 或者 rootFiber
   const parentFiber = getHostParent(finishedWork)
   // Node: 这两个变量必须同时被改变
   let parent
@@ -33,11 +33,6 @@ export function commitPlacement (finishedWork: Fiber): void {
     case WorkTag.HostPortal:
     case WorkTag.FundamentalComponent:
       break
-    
-    // if (parentFiber.effectTag & EffectTag.ContentReset) {
-
-    // }
-
   }
   // 寻找一个兄弟节点？意义不明
   const before = getHostSibling(finishedWork)
@@ -60,8 +55,6 @@ export function commitPlacement (finishedWork: Fiber): void {
           appendChildToContainer(parent, stateNode)
         }
       }
-    } else if (node.tag === WorkTag.HostPortal) {
-
     } else if (node.child !== null) {
       // 如果有子元素，向子元素移动
       node.child.return = node

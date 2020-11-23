@@ -126,39 +126,4 @@ function createElement<T>(
   )
 }
 
-// function createElement<T> (
-//   type: NodeType,
-//   props?: T & Props | null,
-//   ..._children: Array<ReactElementList | null | string>
-// ) {
-//   // 创建一个Nerv元素
-//   const ele: ReactElement = {
-//     type,
-//     $$typeof: REACT_ELEMENT_TYPE
-//   }
-//   // 收集children元素
-//   let children
-//   if (_children.length === 1) {
-//     if (typeof _children[0] === 'string') {
-//       children = [buildTextNode(_children[0])]
-//     } else {
-//       children = [_children[0]]
-//     }
-//   } else 
-//   if (_children.length === 0) {
-//     children = null
-//   } else {
-//     children = [..._children]
-//   }
-//   ele.children = children
-
-//   // 收集props
-//   ele.props = props || {}
-//   if (props?.key) {
-//     ele.key = props.key
-//   }
-  
-//   return ele
-// }
-
 export default createElement

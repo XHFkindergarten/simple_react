@@ -12,7 +12,7 @@ import {
 } from './DomComponentTree'
 
 
-// 注册注入顺序
+// 按照注册注入顺序
 EventPluginHub.injectEventPluginOrder(DOMEventPluginOrder)
 
 // 真正的注入事件内容

@@ -91,10 +91,7 @@ export function getListener (
   }
   // 得到监听函数
   listener = props[registrationName]
-
-  // if (shouldPreventMouseEvent(registrationName, inst.type, props)) {
-  //   return null
-  // }
+  
   return listener
 }
 

@@ -448,15 +448,11 @@ function ChildReconciler (
             child,
             (
               element.type === REACT_FRAGMENT_TYPE
-                // @todo
-                // props 本该是一个对象，但是对于 Fragment 的 fiber 传了一个数组
-                // 这里有一点疑惑，后续再回头考证一下
                 ? element.props.children
                 : element.props
             ),
             expirationTime
           )
-          // @todo existing.ref = coerceRef(returnFiber, child, element)
           existing.return = returnFiber
           return existing
         } else {
@@ -470,20 +466,16 @@ function ChildReconciler (
       }
       child = child.sibling
     }
-    // @todo 我们先跳过Fragment的部分
-    // if (element.$$typeof = REACT_FRAGMENT_TYPE) {
-    //   // @todo
-    //   return 
-    // } else {
+    
     const created = createFiberFromElement(
       element,
       returnFiber.mode,
       expirationTime
     )
-    // @todo created.ref = coerceRef(returnFiber, currentFirstChild, element)
+    
     created.return = returnFiber
+
     return created
-    // }
   }
 
   // 调和文字节点
@@ -526,11 +518,7 @@ function ChildReconciler (
       // 并没有子元素需要处理
       return null
     }
-    // @todo 省略了一些奇怪的判断，这里的newChild是组件实例
     
-    // 当newChild为Fragment节点的情况
-    // @todo if (isUnkeyedTopLevelFragment)
-    // @todo newChild = newChild.props.children
     // 处理对象类型(单个节点)
     const isObjectType = isObject(newChild) && !isNull(newChild)
     if (isObjectType) {

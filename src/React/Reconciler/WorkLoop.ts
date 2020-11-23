@@ -345,8 +345,6 @@ function commitRootImpl (
   root: FiberRoot,
   renderPriorityLevel: ReactPriorityLevel
 ) {
-  // 刷新被动的effect
-  // flushPassiveEffects()
 
   const finishedWork = root.finishedWork
   const expirationTime = root.finishedExpirationTime
@@ -409,20 +407,13 @@ function commitRootImpl (
     // 执行上下文加入Commit
     excutionContext |= ExcutionContext.CommitContext
 
-    // 清空当前的Owner
-    // ReactCurrentOwner.current = null
-
     // commit阶段被分成了几个小阶段
     // 我们在每个阶段都会遍历effect list
-    // 所有的突变effect都会在layout effect?之前
+    // 所有的突变 effect 都会在 layout effect 之前
 
     // 第一阶段是 before mutation
     // 我们使用这个阶段阅读整个tree的state
-    // 生命周期 getSnapshotBeforeUpdate也是在这里出发
-
-    // @todo
-    // startCommitSnapshotEffectsTimer()
-    // prepareForCommit(root.containerInfo)
+    // 生命周期 getSnapshotBeforeUpdate也是在这里触发
     
 
     // 将firstEffect
@@ -430,7 +421,6 @@ function commitRootImpl (
 
     while(nextEffect !== null) {
       try {
-        // @todo
         // effect的第一次循环
         // 1. 在class组件中通过prevState,prevProps获取组件快照，用于componentDidUpdate
         // 2. 只有在fiber为class component时才工作
@@ -447,12 +437,12 @@ function commitRootImpl (
 
     // 再次赋值
     nextEffect = firstEffect
+    console.log('firstEffect', firstEffect)
 
     // effect的第二次循环
     // 根据fiber的effectTag，执行不同的操作(插入，更新，删除)
     while (nextEffect !== null) {
       try {
-        // @todo
         commitMutationEffects(root, renderPriorityLevel)
       } catch(err) {
         throw new Error(err)
@@ -460,8 +450,8 @@ function commitRootImpl (
     }
 
     // 在 commit Mutation 阶段之后，workInProgress tree 已经是真实 Dom 对应的树了
-    // 所以之前的 tree 仍然是 componentWillUnmount 阶段的状态，但是在 layout phase 之前
-    // 所以 finishedWork 要作为现在的 current
+    // 所以之前的 tree 仍然是 componentWillUnmount 阶段的状态
+    // 所以此时， workInProgress 代替了 current 成为了新的 current
     root.current = finishedWork
 
 
@@ -471,7 +461,7 @@ function commitRootImpl (
     // @todo
     // startCommitLifeCyclesTimer()
 
-    // 重新指向第一个 effect
+    // 重新指向第一个 side effect
     nextEffect = firstEffect
 
     while(nextEffect !== null) {
@@ -488,13 +478,11 @@ function commitRootImpl (
 
     nextEffect = null
 
-    // important
-    // 通知 Scheduler 在当前帧的结尾处 yield ,这样浏览器能够将线程交给绘画引擎
+    // 通知 Scheduler 在当前帧的结尾处 yield
+    // 然而在大多数浏览器环境下这个函数都是一个空函数，你可以理解为这是没有 MessageChannel 时才使用的 hack 函数
     // requestPaint()
 
     excutionContext = prevExecutionContext
-  } else {
-    // @todo
   }
 
   const rootDidHavePassiveEffects = rootDoesHavePassiveEffects
@@ -636,15 +624,8 @@ function commitMutationEffects (
   while (nextEffect !== null) {
     // 当前fiber的tag
     const effectTag = nextEffect.effectTag
-    // 如果有contentReset的需求
-    if (effectTag & EffectTag.ContentReset) {
-      // commitResetTextContext(nextEffect)
-    }
-    if (effectTag & EffectTag.Ref) {
-      // @todo
-    }
 
-    // 下方的switch语句只处理Placement,Deletion和Update
+    // 下方的switch语句只处理 Placement,Deletion 和 Update
     const primaryEffectTag = effectTag & (
       EffectTag.Placement |
       EffectTag.Update |
@@ -653,11 +634,13 @@ function commitMutationEffects (
     )
     switch (primaryEffectTag) {
       case EffectTag.Placement: {
+        // 执行插入
         commitPlacement(nextEffect)
         // effectTag 完成实名制后，要将对应的 effect 去除
         nextEffect.effectTag &= ~EffectTag.Placement
       }
       case EffectTag.Update: {
+        // 更新现有的 dom 组件
         const current = nextEffect.alternate
         commitWork(current, nextEffect)
       }
@@ -720,7 +703,6 @@ function performSyncWorkOnRoot (root: FiberRoot) {
 
       // 不间断的同步工作，完全不考虑时间片
       workLoopSync()
-
       excutionContext = prevExcutionContext
       // dispatcher 出栈
       popDispatcher(prevDispatcher)

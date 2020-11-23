@@ -74,7 +74,6 @@ export function constructClassInstance (
   const instance = new constructor(props, context)
   workInProgress.memorizedState = !isNullOrUndefined(instance.state) ? instance.state : null
 
-  // important
   // 挂载更新器 updater
   // 将 dom 实例挂载到 wip 上
   adoptClassInstance(workInProgress, instance)
@@ -89,23 +88,14 @@ export function mountClassInstance (
   newProps: any,
   renderExpirationTime: number
 ): void {
-  // 获取fiber上存储的react实例
+  // 获取类实例
   const instance = workInProgress.stateNode
   // 绑定Fiber上的新属性
   instance.props = newProps,
   instance.state = workInProgress.memorizedState
   instance.refs = emptyRefObject
 
-  // @todo
-  // 不知道干嘛的
-  // const contextType = undefined
-
-  const updateQueue = workInProgress.updateQueue
   // 对于一个全新的Fiber而言，updateQueue为null
-  if (updateQueue !== null) {
-    // @todo
-    // processUpdateQueue()
-  }
 
   const getDerivedStateFromProps = constructor.getDerivedStateFromProps
   if (isFunction(getDerivedStateFromProps)) {

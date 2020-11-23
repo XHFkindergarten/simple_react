@@ -133,13 +133,13 @@ export function createWorkInProgress (
     workInProgress.alternate = current
     current.alternate = workInProgress
   } else {
-    // 我们已经有了一个WIP
+    // 我们已经有了一个 WIP
     workInProgress.pendingProps = pendingProps
 
-    // 重置effectTag
+    // 重置 effectTag
     workInProgress.effectTag = EffectTag.NoEffect
 
-    // effect链表也恢复
+    // 重置 effect 链表
     workInProgress.nextEffect = null
     workInProgress.firstEffect = null
     workInProgress.lastEffect = null
@@ -155,17 +155,6 @@ export function createWorkInProgress (
   workInProgress.memorizedProps = current.memorizedProps
   workInProgress.memorizedState = current.memorizedState
   workInProgress.updateQueue = current.updateQueue
-
-  // 克隆 dependencies对象。因为会在render阶段突变，所以不能和当前的fiber共享
-  const currentDependencies = current.dependencies
-  workInProgress.dependencies = 
-    currentDependencies === null
-    ? null
-    : {
-      expirationTime: currentDependencies.expirationTime,
-      firstContext: currentDependencies.firstContext,
-      responders: currentDependencies.responders
-    }
   return workInProgress
 }
 
@@ -214,7 +203,9 @@ export function createFiberFromText (
   return fiber
 }
 
-// 为什么React的函数分这么细。。头晕
+/**
+ * 最常用的一个函数，通过 reactElement 的 type 和 props 来创建一个 fiber
+ */
 export function createFiberFromTypeAndProps (
   type: any,
   key: string | null,

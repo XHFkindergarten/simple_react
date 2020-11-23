@@ -87,13 +87,13 @@ export function listenTo (
   registrationName: string,
   mountAt: Document | Element | Node
 ): void {
-  // 判断这个Dom元素是否在listen map中注册过事件
+  // 判断这个Dom元素是否在 listen map 中注册过事件
   const listeningSet = getListeningSetForElement(mountAt)
   // // 根据注册的事件名获取对应的dependencies
   const dependencies = registrationNameDependencies[registrationName]
 
   for(let i = 0; i < dependencies.length; i++) {
-    // dependency也是DOMTopLevelType
+    // dependency 也是 DOMTopLevelType
     const dependency = dependencies[i]
     listenToTopLevel(dependency, mountAt, listeningSet)
   }
@@ -112,8 +112,6 @@ export function listenToTopLevel (
       default: {
         // 默认，在顶层监听所有非媒体事件
         // 因为媒体事件不会冒泡，监听没用
-        // @todo 偷个懒吧，Demo里反正也没有媒体
-        // const isMediaEvent = mediaEventTypes.indexOf(topLevelType)
         const isMediaEvent = false
         if (!isMediaEvent) {
           // 媒体事件是不冒泡的，所以只处理非媒体事件

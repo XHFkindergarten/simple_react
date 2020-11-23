@@ -13,9 +13,9 @@ import SyntheticEvent from "./SyntheticEvent"
 import { accumulateTwoPhaseDispatches } from "./EventPropagators"
 // 事件元组类型
 type EventTuple = [
-  DOMTopLevelEventType,
-  string,
-  EventPriority
+  DOMTopLevelEventType, // React 中的事件类型
+  string,               // 浏览器中的事件名称
+  EventPriority         // 事件优先级
 ]
 
 // 数据其实都是写好的，采用注入方式的原因是React需要兼容多种原生环境

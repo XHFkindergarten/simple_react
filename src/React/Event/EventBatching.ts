@@ -28,17 +28,16 @@ export function runEventsInBatch (
 
   // 源码写了一个函数封装 foreach
   forEachAccumulated(processingEventQueue, executeDispatchesAndReleaseTopLevel)
-  // @todo
-  // rethrowCaughtError()
 }
 
 // 触发一个事件并且立刻将事件释放到事件池中，除非执行了presistent
 const executeDispatchesAndRelease = function (event: ReactSyntheticEvent) {
   if (event) {
+    // 按照次序依次触发和该事件类型绑定的所有 listener
     executeDispatchesInOrder(event)
   }
 
-  // 如果没有执行 persistent , 立即销毁事件
+  // 如果没有执行 persist 持久化 , 立即销毁事件
   if (!event.isPersistent()) {
     (event.constructor as any).release(event)
   }

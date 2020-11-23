@@ -104,15 +104,10 @@ export function completeWork (
     case WorkTag.FunctionComponent:
       break
     case WorkTag.ClassComponent: {
-      // const Component = workInProgress.type
-      // if (isLegacyContextProvider(Component)) {
-      //   popLegacyContext(workInProgress)
-      // }
       break
     }
     case WorkTag.HostRoot: {
       popHostContainer(workInProgress)
-      // popTopLevelLegacyContextObject(workInProgress)
       // 获取fiberRoot
       const fiberRoot = workInProgress.stateNode
       // 如果有将要使用的上下文,挂载到root上
@@ -120,10 +115,6 @@ export function completeWork (
         fiberRoot.context = fiberRoot.pendingContext
         fiberRoot.pendingContext = null
       }
-      
-      if (current === null || current.child === null) {
-        // ?? 什么情况
-      }      
     }
     case WorkTag.HostComponent: {
       // pop该fiber对应的上下文
@@ -132,6 +123,7 @@ export function completeWork (
       const rootContainerInstance = getRootHostContainer()
       const type = workInProgress.type
       if (current !== null && workInProgress.stateNode !== null) {
+        // 如果不是初次渲染了，可以尝试对已有的 dom 节点进行更新复用
         updateHostComponent(
           current,
           workInProgress,
@@ -143,9 +135,9 @@ export function completeWork (
         if (!newProps) {
           throw new Error('如果没有newProps,是不合法的')
         }
-        // 获取namespace
         const currentHostContext = getHostContext()
 
+        // 创建原生组件
         let instance = createInstance(
           type as string,
           newProps,
@@ -155,11 +147,12 @@ export function completeWork (
         )
         // 将之前所有已经生成的子dom元素装载到instance实例中
         appendAllChildren(instance, workInProgress, false, false)
-        // This needs to be set before we mount Flare event listeners
+        
+        // 原生 fiber 的 stateNode 指向 dom 结构
         workInProgress.stateNode = instance
 
         // feat: 这个函数真的藏得很隐蔽，我不知道这些人是怎么能注释都不提一句的呢→_→
-        // finalizeInitialChildren 作用是将props中的属性挂载到真实的dom元素中去
+        // finalizeInitialChildren 作用是将props中的属性挂载到真实的dom元素中去，结果作为一个判断条件被调用
         // 返回一个bool值，代表是否需要auto focus(input, textarea...)
         if (finalizeInitialChildren(instance, type as string, newProps, rootContainerInstance, currentHostContext)) {
           markUpdate(workInProgress)

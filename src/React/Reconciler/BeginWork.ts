@@ -48,15 +48,7 @@ export function beginWork (
           break
         case WorkTag.HostComponent:
           pushHostContext(workInProgress)
-          if (
-            workInProgress.mode & Mode.ConcurrentMode &&
-            renderExpirationTime !== ExpirationTime.Never
-            // && shouldDeprioritizeSubtree(workInProgress.type, newProps)
-          ) {
-            // @todo
-          }
           break
-        // @todo
       }
       return bailoutOnAlreadyFinishedWork(
         current,
@@ -157,16 +149,18 @@ function updateClassComponent (
   nextProps,
   renderExpiration: number
 ) {
-  // @todo 省略了判断
-  let hasContext = false
-  // fiberRoot
+  // 如果这个 class 组件被渲染过，stateNode 会指向类实例
+  // 否则 stateNode 指向 null
   const instance = workInProgress.stateNode
+  // 是否需要对现有页面进行更新
   let shouldUpdate
   if (instance === null) {
+    // 这个 class 第一次渲染
     if (current !== null) {
-      // 将WIP和fiber完全解绑
+      // 删除 current 和 WIP 之间的指针
       current.alternate = null
       workInProgress.alternate = null
+      // 插入操作
       workInProgress.effectTag |= EffectTag.Placement
     }
     // 在初始化阶段，先构建实例
@@ -176,6 +170,8 @@ function updateClassComponent (
       nextProps,
       renderExpiration
     )
+
+    // 将属性挂载到类实例上，并且触发多个生命周期
     mountClassInstance(
       workInProgress,
       Component,
@@ -203,7 +199,7 @@ function updateClassComponent (
     workInProgress,
     Component,
     shouldUpdate,
-    hasContext,
+    false,
     renderExpiration
   )
   return nextUnitOfWork
@@ -218,12 +214,7 @@ function finishClassComponent (
   hasContext: boolean,
   renderExpiration: number
 ) {
-  // 即便是shouldComponentUpdate返回了false，Refs也应该更新
-  // @todo
-  // updateRef(current, workInProgress)
 
-  // 是否捕捉到了Error
-  // const didCaptureError = (workInProgress.effectTag & DidCapture) !== EffectTag.NoEffect
   const didCaptureError = false
 
   if (!shouldUpdate && !didCaptureError) {
@@ -237,12 +228,8 @@ function finishClassComponent (
     }
   }
 
-  // 对于 composition 组件而言 stateNode 就是实例
   const instance = workInProgress.stateNode
 
-  // @todo 不知道是干嘛的
-  // Rerender
-  // ReactCurrentOwner.current = workInProgress
   let nextChildren
 
   // 如果捕捉到了错误但是又没有定义getDerivedStateFromProps
@@ -250,9 +237,6 @@ function finishClassComponent (
     // 取消后续的渲染
     nextChildren = null
   } else {
-    // __DEV__
-
-    // __PRO__
     // 执行 class 组件的 render 函数获取更新后的 chidlren
     nextChildren = instance.render()
   }
@@ -260,17 +244,14 @@ function finishClassComponent (
   // 将wip的工作标记为已完成
   workInProgress.effectTag |= EffectTag.PerformedWork
 
-  if (current !== null && didCaptureError) {
-    // 强制Unmount并且重新调和
-    // forceUnmountCurrentAndReconcile()
-  } else {
-    reconcileChildren(
-      current,
-      workInProgress,
-      nextChildren,
-      renderExpiration
-    )
-  }
+  // 开始调和 reconcile
+  reconcileChildren(
+    current,
+    workInProgress,
+    nextChildren,
+    renderExpiration
+  )
+
   return workInProgress.child
 }
 

@@ -32,7 +32,7 @@ class CC extends Component {
     const { toggle } = this.state
     return (
       <div>
-        <h1>Class Component</h1>
+        <h1 className='title'>Class Component</h1>
         <h2>
           {toggle ? 'Nerv_Fiber' : 'O2 Team'}
         </h2>

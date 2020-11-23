@@ -1,5 +1,4 @@
 import { ReactElement, DomContainer, RootTag } from '../common'
-// import createReactRoot from './ReactRoot'
 import { createReactSyncRoot, ReactSyncRoot } from './ReactSyncRoot'
 import { updateContainer } from '../Reconciler/Reconciler'
 import { 
@@ -8,7 +7,6 @@ import {
   discreteUpdate,
   batchedEventUpdates
 } from '../Reconciler/WorkLoop'
-// import { updateContainer } from './Reconciler'
 
 // 引入这个TS文件自动执行浏览器事件注入
 import '../Event/DomInjection'
@@ -23,25 +21,15 @@ setBatchingImplementation(
 )
 
 
+/**
+ * 渲染的入口
+ * @param element 根 React 元素
+ * @param container 真实的 DOM 容器
+ * @param callback render 之后的回调
+ */
 function render (element: ReactElement, container: DomContainer, callback?: Function): any {
   
   // const reactRoot = createReactRoot(node, dom)
-  return legacyRenderSubTreeIntoContainer(
-    null,
-    element,
-    container,
-    false,
-    callback
-  )
-}
-
-function legacyRenderSubTreeIntoContainer (
-  parentComponent: ReactElement | null,
-  element: ReactElement,
-  container: DomContainer,
-  forceHydrate: boolean,
-  callback?: Function
-) {
   // 首先从dom元素上获取ReactRoot实例
   let root = container._reactRootContainer
 
@@ -50,10 +38,7 @@ function legacyRenderSubTreeIntoContainer (
   // 初次渲染
   if (!root) {
     // 根据Dom初始化一个ReactRoot
-    root = container._reactRootContainer = legacyCreateRootFromDomContainer(
-      container,
-      forceHydrate
-    )
+    root = container._reactRootContainer = legacyCreateRootFromDomContainer(container)
     // 获取fiberRoot节点
     fiberRoot = root._internalRoot
     
@@ -62,29 +47,24 @@ function legacyRenderSubTreeIntoContainer (
       updateContainer(
         element,
         fiberRoot,
-        parentComponent
+        null
       )
     }, null)
   }
 }
 
+/**
+ * 创建一个 ReactRoot
+ * @param container 真实 DOM
+ */
 function legacyCreateRootFromDomContainer(
-  container: DomContainer,
-  forceHydrate: boolean
+  container: DomContainer
 ): ReactSyncRoot {
-  // @todo 还有其他情况，例如任务超时时需要强制同步渲染
-  const shouldHydrate = forceHydrate || false
-  if (!shouldHydrate) {
-    // 非强制渲染时，所有带有React标记的子节点，都要被删除
-    // @todo
-  }
   // 创建一个同步渲染的reactRoot
   const reactSyncRoot = createReactSyncRoot(
     container,
     RootTag.LegacyRoot,
-    shouldHydrate ? {
-      hydrate: true
-    } : {}
+    {}
   )
   return reactSyncRoot
 }

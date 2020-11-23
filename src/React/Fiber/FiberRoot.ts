@@ -108,16 +108,11 @@ export function createFiberRootImpl (
   tag: RootTag,
   options: RootOptions
 ) {
-  // 是否同步渲染
-  const hydrate = options?.hydrate
-  // @callback 同步渲染回调
-  // const hydrateCallback = options?.hydrateOptions || null
-  // @TODO 在enableSuspenceCallback时挂载hydrateCallback
 
   const root = new FiberRoot({
     tag,
     containerInfo: container,
-    hydrate
+    hydrate: false
   })
   // 使用RootTag初始化一个空白的Fiber根节点
   const uninitializedFiber = createHostFiber(tag)

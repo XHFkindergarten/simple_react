@@ -433,8 +433,6 @@ function updateReducer<S, I, A> (
   // 找到第一个没有被执行到的 update
   let first
   if (baseUpdate !== null) {
-    console.warn('baseUpdate', baseUpdate)
-    console.warn('last', last)
     // 说明已经不是第一次触发更新了
     if (last !== null) {
       // 对于第一次 update，last 必定为 null

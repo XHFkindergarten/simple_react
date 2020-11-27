@@ -75,7 +75,7 @@ let deadline = 0
 // 单位时间切片长度
 let yieldInterval = 5
 
-// 执行任务直到用尽当前帧空闲时间
+// 执行任务直到用尽当前时间片空闲时间
 function performWorkUntilDeadline () {
   if (scheduledHostCallback !== null) {
     // 如果有计划任务，那么需要执行

@@ -17,6 +17,12 @@ export const emptyRefObject = {}
 // 一个神奇的工具对象
 const classComponentUpdate = {
   isMounted,
+  /**
+   * 触发组件状态的更新
+   * @param inst ReactElement
+   * @param payload any
+   * @param callback 更新结束之后的回调
+   */
   enqueueSetState(
     inst: ReactElement,
     payload: any,
